@@ -1,0 +1,130 @@
+<!-- this is a template that contains HTML and Javascript. It is inserted into body of main_view.html -->
+<script type="text/javascript">
+
+var plume_locs = FixedQueue(9);
+
+// Put a marker on the map at plume location.
+// Optionally display the text of the coordinates - just for debugging
+function plume_show(coord) {
+    // TODO: could skip next block if plume_coord_dbg is not visible
+    // f_format is defined in efsm.js
+    var x_proj = f_format(coord['x_proj'],1);   // reformat string float value with 1 decimal place
+    var y_proj = f_format(coord['y_proj'],1);
+    var x_disp = f_format(coord['x_disp'],1);
+    var y_disp = f_format(coord['y_disp'],1);
+    var x_axis = f_format(coord['x_ax'],2);
+    var y_axis = f_format(coord['y_ax'],2);
+    var img_scale = parseInt(document.getElementById('img_scale').value);
+    c = document.getElementById("map_overlay"); var ctx = c.getContext('2d');
+    var x_mark = x_disp/img_scale;
+    var y_mark = (ctx.canvas.height - y_disp/img_scale);
+    var msg = "<p>plume_show</p><ul>";
+    msg += "<li>ll: "+coord.lon+", "+coord.lat+"</li>";
+    msg += "<li>proj: "+x_proj+", "+y_proj+"</li>";
+    msg += "<li>disp: "+x_disp+", "+y_disp+"</li>";
+    msg += "<li>axis: "+x_axis+", "+y_axis+"</li>";
+    msg += "<li>mark: "+x_mark+", "+y_mark+"</li>";
+    msg += "</ul>";
+    // Write debug text, but plume_div might be "display:none"
+    jQuery('#plume_coord_dbg').html(msg);
+
+    // Plot a marker on the map - you could call efsm.js:map_mark, but that is instead done by
+    // efsm.js:map_click - the more appropriate place to call it.
+    map_mark(x_mark,y_mark);
+}
+
+// user clicked on item in history list
+function plume_list_sel() {
+    var ll = jQuery('#plume_locs option:selected').text();
+    var idx = jQuery('#plume_locs').val();
+    var longitude = plume_locs[idx][0];
+    var latitude = plume_locs[idx][1];
+    console.log('selected: '+longitude+', '+latitude);
+    jQuery('input[name="lon"]').val(longitude);
+    jQuery('input[name="lat"]').val(latitude);
+    plume_update();
+}
+
+// Send plume coordinates to server, get back a plume graph
+function plume_update() {
+    // Construct query, send to server, receive display coordinates for "plume_show"
+    // and then set query string for "plume_img"
+    // how to fetch longitude: var lon = jQuery('#plume_form select[name=lon]').val();
+    var p_args = $("#plume_form").serialize();  // reads lon-lat coords from form
+    var o_args = $('#myform').serialize();
+    var form_args = p_args + '&' + o_args;
+    //console.log(plume_locs);
+    //alert('args: '+form_args);
+    // convert geo coords to others (display, projection) and show in text box
+    // NOTE: plume_form has a hidden text box, with fixed name=value pair: "action=plume"
+    // NOTE: see efsm_query for info of how "action" parameter is used.
+    // NOTE: ajax call is not necessary, only used for debug
+    $.ajax( {url:"efsm_query.py", data:form_args, type:"POST",
+        success: function(resp){
+            //alert(resp.toSource());
+            // object returned by JSON is named 'disp_coord'
+            plume_show(resp);   // debug display of various coordinates
+        },
+        error: function(xhr,status) {alert('plume_update: '+status);},
+        dataType:"json"
+    });
+    // generate a plume plot and show in canvas
+    form_args = form_args.replace(/action=plume/,'action=plume_plot');  // change value of "action" parameter
+    var fld_lvl = jQuery('#myform select[name=fld_lvl]').val();
+    // Parse fld_lvl and fill other values
+    retval = parse_fld_lvl(fld_lvl);
+    field = retval[0];
+    lvl_type = retval[1];
+    level0 = retval[2];
+    form_args = 'field='+field+'&lvl_type='+lvl_type+'&level0='+level0+'&'+form_args;
+    var url = 'efsm_query.py?' + form_args;     // URL to request plume plot image
+    jQuery('#plume_img').attr('src', url);      // change plume_img src URL and new image will be uploaded
+}
+
+function plume_click(lon,lat) {
+    // User clicked on map image (see javascript function map_click). We computed long-lat coords.
+    // Now fillin the plume form boxes and force update.
+    jQuery('#plume_form input[name=lon]').val(lon);
+    jQuery('#plume_form input[name=lat]').val(lat);
+    plume_locs.unshift([lon,lat]);
+    //var new_locs = '<option>new loc</option>';
+
+    jQuery('#plume_locs').empty();
+    var idx = 0;
+    var new_opt = '';
+    var opt_txt = '';
+    plume_locs.forEach (function(item,index,array) {
+        //console.log(""+item);
+        idx += 1;
+        if (item != null) {opt_txt = ""+item;}
+        else opt_txt = 'none';
+        new_opt = $('<option></option>').attr('value',index).text(opt_txt);
+        jQuery('#plume_locs').append(new_opt);
+    });
+    plume_update();
+}
+</script>
+
+<div class='control-box'>
+<strong>Plume Plot Location</strong><br/>
+<br/><em>Click on map or<br/>enter coordinates here</em><br/>
+    <div class="container">
+        <div>
+            <form id='plume_form' action='javascript:plume_update()' style='margin-top:1em'>
+            Longitude:<br><input name='lon' style="width:8em" type='text' value='180'>
+            <br>
+            Latitude:<br><input name='lat' style="width:8em" type='text' value='0'>
+            <br>
+                <input name='action' type='hidden' value='plume'>
+            <input type="submit" value="Submit">
+            </form>
+        </div>
+        <div style="float:left;margin-left:30px;">
+            Locations<br>
+            <select name="plume_locs" id="plume_locs" size="10" onchange="plume_list_sel(event)">
+                <option>none</option>
+            </select>
+        </div>
+
+    </div>
+</div>

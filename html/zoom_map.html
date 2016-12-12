@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zoom</title>
+    <link rel="stylesheet" href="/efs_map/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 500px;
+        width: 1000px;
+      }
+    </style>
+    <script src="/efs_map/js/ol.js" type="text/javascript"></script>
+
+</head>
+<body>
+<H1>OpenLayers map with contour overlay</H1>
+<div id="map_div" class="map"></div>
+<div id="mouse-position"></div>
+
+<script type="text/javascript">
+    // Here we setup OpenLayers map with a PNG overlay.
+    // OL can add graticule
+    // OL mouse position: http://openlayers.org/en/latest/examples/mouse-position.html
+    var mousePositionControl = new ol.control.MousePosition({
+        coordinateFormat: ol.coordinate.createStringXY(4),
+        projection: 'EPSG:4326',
+        // comment the following two lines to have the mouse position
+        // be placed within the map.
+        className: 'custom-mouse-position',
+        target: document.getElementById('mouse-position'),
+        undefinedHTML: '&nbsp;'
+    });
+
+    var extent = [0, 0, 1600, 800];
+    var ll_extent = [-180.0, -90.0, 180.0, 90.0];
+    var ll_extent0 = [0.0, -90.0, 360.0, 90.0];
+
+    var llcorner = [-180.0,-90.0], urcorner = [180.0,90.0];
+    // bounds and xbounds NOT USED
+    var bounds = ol.extent.boundingExtent([llcorner,urcorner]);
+    var xbounds = ol.proj.transformExtent(ll_extent, ol.proj.get('EPSG:4326'), ol.proj.get('EPSG:3857'));
+    // projection NOT USED
+    var projection = new ol.proj.Projection({
+        code: 'xkcd-image',
+        units: 'pixels',
+        extent: extent
+    });
+    // OSM is child of ol.source.XYZ and projection = EPSG:3857
+    var map = new ol.Map({
+        controls: ol.control.defaults({
+            attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+                collapsible: false
+            })
+        }).extend([mousePositionControl]),
+        target: 'map_div',
+        layers: [
+            new ol.layer.Tile({source: new ol.source.OSM(), }),
+        ],
+        view: new ol.View({
+            center: ol.proj.fromLonLat([0.0, 0.0]),
+            zoom: 2,
+            minZoom: 1, maxZoom: 6,
+        })
+    });
+    map.on('click', function(evt) {
+        var coord = evt.coordinate;
+        ll_coord = ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326');
+        console.log('3857: '+coord+' 4326: '+ll_coord);
+    });
+    var ll_proj = 'EPSG:4326';  // with 3857 the map looks the same, but coords are in meters
+    // TODO: can I specify "imageLoadFunction: function(image,src){}"
+    // TODO: or just change it so that 'url' references python with args to re-arrange image bounds
+    var glob_layer = new ol.layer.Image({title:"Wind 850",
+        source: new ol.source.ImageStatic({
+            attributions: 'this is an attribution',
+            url: '/efs_map/images/Overlay-180.png',
+            projection: ll_proj,
+            imageExtent: ll_extent,
+        }),
+        opacity: 0.5
+    });
+    //glob_layer.setExtent(bounds);
+    map.addLayer(glob_layer);
+</script>
+<img src="/efs_map/images/zorro_1.jpg" style="width:160px;height:120px">
+
+</body>
+</html>

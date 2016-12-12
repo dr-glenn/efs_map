@@ -1,0 +1,50 @@
+.container {
+    display: flex;
+    justify-content: flex-start;
+}
+
+#map_overlay {
+    position:absolute;
+    top:0;
+    left:0;
+    z-index:10;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+#map_canvas {
+    position:absolute;
+    top:0;
+    left:0;
+    z-index:1;
+}
+
+.bordered {
+    border: 3px solid blue;
+    margin: 3px;
+    padding: 5px;
+}
+
+.control-box { padding:5px;border-radius:5px;background:#ddddff; }
+
+.tn_title {
+   margin: 0px;
+   padding: 0px;
+   background: black;
+   color: white;
+   border: black solid 1px;
+   line-height: 20pt;
+   text-align: left;
+}
+
+.classification-bar {
+    color:white;
+    background-color:green;
+    font-size: 10pt;
+}
+
+.title-bar {
+    color: white;
+    background-color: black;
+    font-size: 20pt;
+}

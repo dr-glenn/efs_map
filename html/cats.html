@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html LANG="en">
+<head>
+    <title>EFS Maps</title>
+    <script src='/efs_map/js/jquery-2.2.1.min.js'></script>
+    <style>
+    #container {
+        display: flex;
+        justify-content: flex-start;
+    }
+    </style>
+</head>
+<body>
+<h1>
+Herding Cats
+</h1>
+<div id="container">
+    <div id='canvas_div'>
+        <img id='cat' alt='Zorro' src='../images/zorro_1.jpg'>
+        <img id='jj' alt='JJ' src='../images/jj-legs.jpg'>
+        <canvas id='map_canvas' width='100' height='100' style="border:2px solid #000000;"></canvas>
+    </div>
+</div>
+<script type="text/javascript">
+    jQuery(document).ready( function() {
+        //var c = jQuery("#map_canvas"), ctx = c[0].getContext('2d');
+        //var img = jQuery("#cat");
+        //var img_x, img_y;
+        // When the image in "cat" is loaded, find the canvas and copy image to it using drawImage
+        jQuery("#cat").load( function () {
+                                var c = jQuery("#map_canvas"), ctx = c[0].getContext('2d');
+                                var img_x = jQuery(this).width(), img_y = jQuery(this).height();
+                                ctx.canvas.height = img_y+20;   // resize canvas with some padding
+                                ctx.canvas.width  = img_x+20;
+                                ctx.drawImage(this,10,10);
+                             } );
+        // When the image in "cat" is clicked, update the canvas with a different image
+        jQuery("#cat").click( function () {
+            // BUG: xx and yy equal zero, but are OK if use plain javascript for this code
+            var img = jQuery('<img>');
+            img.attr('src', '../images/jj-legs.jpg');
+            img.on('load', function() {
+                var xx = jQuery(this).width(); var yy = jQuery(this).height();
+                console.log('x='+xx+' y='+yy);
+                var c = jQuery("#map_canvas"), ctx = c[0].getContext('2d');
+                ctx.canvas.height = yy+50;  // ensure canvas has non-zero size
+                ctx.canvas.width  = xx+50;
+                // BUG: even though xx=yy=0 at this place, "this" will correctly display within canvas,
+                // so we know the image is loaded.
+                ctx.drawImage(this,0,0);
+                } );
+        } );
+    } );
+</script>
+</body>
+</html>
