@@ -59,7 +59,11 @@ fileHandler.setLevel(logging.DEBUG)
 rootLogger.setLevel(logging.DEBUG)
 rootLogger.addHandler(fileHandler)
 
-map_size = (8,6)    # matplotlib figure size in inches - good aspect ration for global maps
+bUseOL3 = True
+if bUseOL3:
+    map_size = (8,4)    # matplotlib figure size in inches - good aspect ration for global maps
+else:
+    map_size = (8, 6)  # matplotlib figure size in inches - good aspect ration for global maps
 map_dpi  = 200.0    # pixels per inch, it doesn't need to match monitor
 
 taus = range(0,241,24)  # from 0 to 240 hours, step 24

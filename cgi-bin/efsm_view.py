@@ -73,7 +73,7 @@ if __name__ == '__main__':
     page_templ = env.get_template('main_view.html')
     page_templ_args = {}
 
-    page_templ_args['fnmoc_css'] = config.fnmocCSS
+    page_templ_args['fnmoc_css'] = ""
     dtgs = getValidDTG(grid_root)   # list of DTG available in ISIS for the model (ENSEMBLE)
     page_templ_args['dtgs'] = dtgs
     page_templ_args['taus'] = config.taus
@@ -83,10 +83,13 @@ if __name__ == '__main__':
     loopControl = loop_control.LoopControl()
     page_templ_args['tau_buttons_head'] = tauButtons.buildHtmlHead()    # generate javascript
     page_templ_args['loop_control_head'] = loopControl.buildHtmlHead()  # generate javascript
+#    page_templ_args['tau_buttons_head'] = ""   # generate javascript
+#    page_templ_args['loop_control_head'] = ""  # generate javascript
 
     # piano_keys is HTML to insert into main page. These are lean and functional FNMOC style buttons
     piano_keys = createPianoSelector2(tauButtons, loopControl)
     page_templ_args['piano_keys'] = piano_keys
+#    page_templ_args['piano_keys'] = ""
 
     # A separate piece of the main page is a form for generating plume plots
     plume_templ = env.get_template('plume_form.html')

@@ -42,9 +42,11 @@ button.loop_controls {
     height: 24px;
 }
 </style>
+<!-- GDN - disable FNMOC
 <script src="/common/js/slider/carpe_common.js"></script>
 <script src="/common/js/slider/carpe_slider.js"></script>
 <link href="/common/css/carpe_slider.css" rel="stylesheet" type="text/css"/>
+-->
 <script src="../js/loop_control.js"></script>
 <script type="text/javascript">
     var loopControls = LoopControlsJS;
@@ -108,7 +110,10 @@ button.loop_controls {
         <tr>
          <td>Speed</td>
          <td style='border: 0; border-style: solid;'>
+             <!--
              <input class="carpe-slider from-2000 to-200 position-55" style="float: left; clear: none;" id="anim_speed" name="anim_speed" type="text" />
+             -->
+             <input class="carpe-slider" min="200" max="2000" step="20" style="float: left; clear: none; transform: rotateY(180deg)" id="anim_speed" name="anim_speed" type="range" />
          </td>
         </tr>
 

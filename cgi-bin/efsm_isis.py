@@ -32,6 +32,7 @@ import efsm_config as config
 import logging  # see efsm_config.py for more info about logger
 logger = logging.getLogger('efsm_isis')
 import traceback    # for debugging disasters
+import copy
 import efsv_isis_fnmoc as isis  # read ISIS files, convert to object ISIS_GRID
 
 cgi_app = False     # default assumes run from command line (which is actually unlikely)
@@ -181,7 +182,14 @@ def main(argv):
     # TODO: gridx, gridy should not be fixed here
     gridx = 360
     gridy = 181
-    
+
+    bLonZero = False  # left-most longitude is 0 degrees, else it is -180
+    if bLonZero:
+        lon_bounds = [0.0, 360.0]
+    else:
+        lon_bounds = [-180.0, 180.0]
+    lon_center = np.average(lon_bounds)
+
     ######### Parse command line args ###########
     # there are better ways to parse args, but this will do for this simple program
     if len(argv) > 1:
@@ -273,9 +281,15 @@ def main(argv):
         # Read the map grid and sanitize it by setting max and NaN values to something sane
         try:
             logger.debug('call ISIS_GRID.iread: %d' %(iplot+1))
-            map_data = isis.ISIS_GRID.iread(isis_params,iplot+1)
+            idata = isis.ISIS_GRID.iread(isis_params,iplot+1)
             logger.debug('return from ISIS_GRID.iread')
-            valid_data = map_data.valid
+            map_data = copy.copy(idata)
+            valid_data = idata.valid
+            if not bLonZero:
+                # need to swap two sides of map_data to run from -180 to +180
+                map_data[:, 0:180] = idata[:, 180:360]
+                map_data[:, 180:360] = idata[:, 0:180]
+
             dtg = isis_params.dtg
             tau = isis_params.tau
             level = isis_params.level0
@@ -312,6 +326,7 @@ def main(argv):
             # my_axes is a numpy array (n_rows x n_cols) - neat!
             logger.debug('plotit: setup plot')
             plt.close('all')
+            #plt.axis('off')
             try:
                 # squeeze=False guarantees that returned object 'my_axes' is always a 2-D numpy array.
                 # When squeeze=True (default), it will return a 2-D array only if nrows>1 and ncols>1.
@@ -402,10 +417,10 @@ def main(argv):
                 plt.subplot(n_rows,n_cols,(icol+1)+(irow*n_cols)) # make sure to select current subplot
             # TODO: next section should be only done once, but what if multiplot display?
             if iplot == 0:
-                map_ax = Basemap(ax=sub_axis, projection='mill', resolution='c', lon_0=180)
+                map_ax = Basemap(ax=sub_axis, projection='cyl', resolution='c', lon_0=lon_center)
                 # plotting grid data on top of basemap
                 lats0 = np.arange(-90.0,90.1,grid_incr)
-                lons0 = np.arange(0.0,359.9,grid_incr)
+                lons0 = np.arange(lon_bounds[0],lon_bounds[1]-0.1,grid_incr)
                 lons,lats = np.meshgrid(lons0, lats0)   # create 2D grid of all (lon,lat) points
                 #print '%d,%d' %(len(lons),len(lats))
                 x,y = map_ax(lons, lats)    # convert (lon,lat) to x,y - projection coordinates
@@ -425,13 +440,19 @@ def main(argv):
             xcoords = paths.vertices.transpose()[0]
             ycoords = paths.vertices.transpose()[1]
             '''
-
+            bLabelMap = not config.bUseOL3  # if using OL3, must not create labels
             if iplot == 0:
                 # plot coastlines, draw label meridians and parallels.
                 map_ax.drawcoastlines()
-                map_ax.drawparallels(np.arange(-90,90,30),labels=[1,0,0,0])
-                #map_ax.drawmeridians(np.arange(map_ax.lonmin,map_ax.lonmax+30,60),labels=[0,0,0,1])
-                map_ax.drawmeridians(np.arange(lons0[0],lons0[-1]+30,60),labels=[0,0,0,1])
+                if bLabelMap:
+                    # show lat-long labels (left,right,top,bottom)
+                    map_ax.drawparallels(np.arange(-90,90,30),labels=[1,0,0,0])
+                    map_ax.drawmeridians(np.arange(lons0[0],lons0[-1]+30,60),labels=[0,0,0,1])
+                else:
+                    # no labels
+                    map_ax.drawparallels(np.arange(-90,90,30),labels=[0,0,0,0])
+                    map_ax.drawmeridians(np.arange(lons0[0],lons0[-1]+30,60),labels=[0,0,0,0])
+
                 # fill continents 'coral' (with zorder=0), color wet areas 'aqua'
                 map_ax.drawmapboundary(fill_color='grey')
                 #map_ax.fillcontinents(color='coral',lake_color='aqua')
@@ -444,7 +465,8 @@ def main(argv):
 
                 #sub_axis.set_title('%s, level=%.1f, tau=%03d, dtg=%s\nmin/max = %g/%g\nnum < %g : %d, num > %g : %d, NaN: %d' \
                 #                   %(fld_title,level,tau,dtg,minval,maxval,lower_limit,nmin,upper_limit,nmax,num_nan))
-                sub_axis.set_title('%s, level=%.1f, tau=%03d, dtg=%s\nmin/max = %g/%g' \
+                if bLabelMap:
+                    sub_axis.set_title('%s, level=%.1f, tau=%03d, dtg=%s\nmin/max = %g/%g' \
                                    %(fld_title,level,tau,dtg,minval,maxval))
 
         except:
