@@ -1,6 +1,10 @@
-.container {
+.my-container {
     display: flex;
     justify-content: flex-start;
+}
+
+.flex-item {
+    margin: 10px;
 }
 
 #map_overlay {

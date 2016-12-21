@@ -223,20 +223,9 @@ def main(argv):
     logger.debug( str(files) )
     
     # TODO: this code not needed for spaghetti, but we could do multi-panel display for different tau
-    n_per_page = 4
-    n_pages = (len(infiles)-1)/n_per_page + 1    # allow 4 per page
-    if len(infiles) == 1:
-        n_subplot = 1    # one file only will get entire plot area
-        n_rows = 1
-        n_cols = 1
-    elif len(infiles) == 2:
-        n_subplot = 2    # two files are displayed as one row, two columns
-        n_rows = 1
-        n_cols = 2
-    else:
-        n_subplot = n_per_page    # if 3 or more, then put 4 on a page
-        n_rows = 2
-        n_cols = 2
+    n_subplot = 1    # one file only will get entire plot area
+    n_rows = 1
+    n_cols = 1
 
     # if all graphs should be same range
     zbreaks = None
@@ -323,32 +312,11 @@ def main(argv):
         # TODO: remaing code in main() should be a separate function and should be called by httpSendCache
         if iplot == 0:
             # Setting up plot figure first time through
-            # my_axes is a numpy array (n_rows x n_cols) - neat!
             logger.debug('plotit: setup plot')
-            plt.close('all')
-            #plt.axis('off')
-            try:
-                # squeeze=False guarantees that returned object 'my_axes' is always a 2-D numpy array.
-                # When squeeze=True (default), it will return a 2-D array only if nrows>1 and ncols>1.
-                # TODO: spaghetti not expected to have subplots
-                # NOTE: subplots not valid for mpl 0.99
-                fig,my_axes = plt.subplots(nrows=n_rows, ncols=n_cols, squeeze=False)
-                #plt.subplots_adjust(bottom=0.10,left=0.10)
-            except:
-                pass
-            if True:    # instead of using subplots functionality, just pretend this is mpl 0.99 and do it the old-fashioned way
-                # old matplotlib 0.99 does not have method "subplots"
-                mpl99 = True
-                fig = None
-                #my_axes = np.array((n_rows,n_cols))
-                #my_axes = np.array(dtype=object,ndmin=2)
-                # TODO: should make my_axes into a numpy 2-D array, but how?
-                my_axes = []
-                for r in range(n_rows):
-                    my_axes.append([])
-                    for c in range(n_cols):
-                        my_axes[r].append(plt.subplot(n_rows,n_cols,(c+1)+(r*n_cols)))
-                    
+            fig = plt.figure(1)
+            my_ax = fig.add_axes([0, 0, 1, 1])     # [left,bottom,width,height]
+            my_ax.axis('off')
+
         nmax = 0
         nmin = 0
         num_nan = 0
@@ -401,21 +369,7 @@ def main(argv):
         # Plot the map_data
     
         try:
-            # Which subplot?
-            if False:
-                # code for multi-panel display
-                irow = iplot / n_cols
-                icol = iplot % n_cols
-            else:
-                irow = icol = 0
-            #print 'iplot=%d, irow=%d, icol=%d' %(iplot,irow,icol)
-            #print 'my_axes len=%d' %(len(my_axes))
-            if mpl99 == False:
-                sub_axis = my_axes[irow,icol]
-            else:
-                sub_axis = my_axes[irow][icol]
-                plt.subplot(n_rows,n_cols,(icol+1)+(irow*n_cols)) # make sure to select current subplot
-            # TODO: next section should be only done once, but what if multiplot display?
+            sub_axis = my_ax
             if iplot == 0:
                 map_ax = Basemap(ax=sub_axis, projection='cyl', resolution='c', lon_0=lon_center)
                 # plotting grid data on top of basemap
@@ -425,12 +379,41 @@ def main(argv):
                 #print '%d,%d' %(len(lons),len(lats))
                 x,y = map_ax(lons, lats)    # convert (lon,lat) to x,y - projection coordinates
                 logger.debug('contour shapes: map_data=%s, x=%s, y=%s' %(str(map_data.shape),str(x.shape),str(y.shape)))
+            bLabelMap = not config.bUseOL3  # if using OL3, must not create labels
+            if iplot == 0:
+                # plot coastlines, draw label meridians and parallels.
+                map_ax.drawcoastlines()
+                if bLabelMap:
+                    # show lat-long labels (left,right,top,bottom)
+                    lat_labels = [1,0,0,0]
+                    lon_labels = [0,0,0,1]
+                else:
+                    # no labels
+                    lat_labels = [0,0,0,0]
+                    lon_labels = [0,0,0,0]
+                map_ax.drawparallels(np.arange(-90,90,30),labels=lat_labels)
+                map_ax.drawmeridians(np.arange(lons0[0],lons0[-1]+30,60),labels=lon_labels)
+
+                # fill continents 'coral' (with zorder=0), color wet areas 'aqua'
+                map_ax.drawmapboundary(fill_color='grey')
+                #map_ax.fillcontinents(color='coral',lake_color='aqua')
+
+                if bLabelMap:
+                    sub_axis.set_title('%s, level=%.1f, tau=%03d, dtg=%s\nmin/max = %g/%g' \
+                                   %(fld_title,level,tau,dtg,minval,maxval))
             if zbreaks:
                 cs = sub_axis.contour(x,y,map_data,levels=zbreaks,colors=zcolors)
                 #cb = plt.colorbar(cs, shrink=0.8, extend='both')
             else:
                 cs = sub_axis.contourf(x,y,map_data)
 
+            if iplot == 0:
+                #plt.colorbar(cs,ax=sub_axis,shrink=0.8)
+                #plt.clabel(cs, inline=1, fontsize=10)
+                labels = ['%.1f' % (z) for z in zbreaks]
+                for i in range(len(labels)):
+                    cs.collections[i].set_label(labels[i])
+                #plt.legend()
             '''
             # Get the actual contours so that we can use them somewhere else
             output = cs.collections.pop()
@@ -440,34 +423,6 @@ def main(argv):
             xcoords = paths.vertices.transpose()[0]
             ycoords = paths.vertices.transpose()[1]
             '''
-            bLabelMap = not config.bUseOL3  # if using OL3, must not create labels
-            if iplot == 0:
-                # plot coastlines, draw label meridians and parallels.
-                map_ax.drawcoastlines()
-                if bLabelMap:
-                    # show lat-long labels (left,right,top,bottom)
-                    map_ax.drawparallels(np.arange(-90,90,30),labels=[1,0,0,0])
-                    map_ax.drawmeridians(np.arange(lons0[0],lons0[-1]+30,60),labels=[0,0,0,1])
-                else:
-                    # no labels
-                    map_ax.drawparallels(np.arange(-90,90,30),labels=[0,0,0,0])
-                    map_ax.drawmeridians(np.arange(lons0[0],lons0[-1]+30,60),labels=[0,0,0,0])
-
-                # fill continents 'coral' (with zorder=0), color wet areas 'aqua'
-                map_ax.drawmapboundary(fill_color='grey')
-                #map_ax.fillcontinents(color='coral',lake_color='aqua')
-                #plt.colorbar(cs,ax=sub_axis,shrink=0.8)
-                #plt.clabel(cs, inline=1, fontsize=10)
-                labels = ['%.1f' %(z) for z in zbreaks]
-                for i in range(len(labels)):
-                    cs.collections[i].set_label(labels[i])
-                plt.legend()
-
-                #sub_axis.set_title('%s, level=%.1f, tau=%03d, dtg=%s\nmin/max = %g/%g\nnum < %g : %d, num > %g : %d, NaN: %d' \
-                #                   %(fld_title,level,tau,dtg,minval,maxval,lower_limit,nmin,upper_limit,nmax,num_nan))
-                if bLabelMap:
-                    sub_axis.set_title('%s, level=%.1f, tau=%03d, dtg=%s\nmin/max = %g/%g' \
-                                   %(fld_title,level,tau,dtg,minval,maxval))
 
         except:
             e = sys.exc_info()
@@ -478,18 +433,7 @@ def main(argv):
         iplot += 1
         logger.debug('iplot=%d: memory use=%d'%(iplot,resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
         # TODO: multi-panel maps
-        if False and iplot == n_per_page:
-            iplot = 0
-            #plt.tight_layout(pad=0.4)
-            plt.show()
-            for irow in range(n_rows):
-                for icol in range(n_cols):
-                    if mpl99 == False:
-                        my_axes[irow,icol].cla()
-                    else:
-                        my_axes[irow][icol].cla()
-            #plt.cla()
-    
+
     if iplot > 0:
         if cgi_app:
             # Send map to HTTP stream
@@ -503,19 +447,6 @@ def main(argv):
             logger.debug('output show')
             #plt.tight_layout(pad=0.4)
             plt.show()
-    if False:
-        # TODO: this is debug code only and it's been throwing exception
-        # coordinate of center of map
-        xy_fig = (0.5,0.5)
-        logger.debug('xy_fig=%s' %(str(xy_fig)))
-        xy_disp = F.transFigure.transform(xy_fig)
-        logger.debug('xy_disp=%s' %(str(xy_disp)))
-        # Convert display coordinates to data coordinates
-        inv = sub_axis.transData.inverted()
-        xy_data = inv.transform(xy_disp)
-        logger.debug('1. xy_data=%s' %(str(xy_data)))
-        xy_data = map_ax(xy_data[0],xy_data[1],inverse=True)
-        logger.debug('2. xy_data=%s' %(str(xy_data)))
 
 if __name__ == '__main__':
     '''

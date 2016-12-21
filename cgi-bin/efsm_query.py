@@ -145,6 +145,7 @@ if __name__ == '__main__':
     elif action == 'clear_cache':   # clear cached image files
         clear_cache()
     elif action == 'contours':
+        # Returns default contour values for the selected field
         retval = {}
         fld_lvl = cgiform.getfirst('fld_lvl')
         contours = config.get_contours(fld_lvl)

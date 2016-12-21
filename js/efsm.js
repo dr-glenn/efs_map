@@ -62,6 +62,7 @@ function map_zoom(thisObj,ev) {
 // Handles user click in client area.
 // Sends XY coords off to server so that Python matplotlib can derive longitude-latitude
 // from the mouse click.
+// TODO: not used with OL3, but should be used as handler for 'map.on("click")'
 function map_click(thisObj,ev) {
     var clientX, clientY;
     var screenX, screenY;
@@ -137,6 +138,48 @@ function map_mark(x,y) {
     ctx.fillRect(x-msize/2,y-msize/2,msize,msize);
 }
 
+function map_mark_overlay(lon,lat) {
+    // Example from: http://stackoverflow.com/questions/32260021/openlayers-3-drawing-a-polygon-feature-over-the-dateline
+    // If you don't parseFloat, then "31.2" is treated as a string!
+    var x = parseFloat(lon), y = parseFloat(lat);
+    var wgs84Proj = new ol.proj.Projection({ code : "EPSG:4326" });
+    var origProj = new ol.proj.Projection({ code : "EPSG:3857" });
+    // styling for the markers:
+    var _myStroke = new ol.style.Stroke({
+       color : 'rgba(0,0,255,1.0)',
+       width : 1
+    });
+    var _myFill = new ol.style.Fill({
+       color: 'rgba(255,255,0,0.6)'
+    });
+    var myStyle = new ol.style.Style({
+       stroke : _myStroke,
+       fill : _myFill
+     });
+    marker_layer.setStyle(myStyle);
+
+    // If square straddles the date-line, make sure that logitude increases to the right.
+    //var unformattedCoordinates = [[175, 70], [175, 60], [-160, 60], [-160, 70]];
+    //var unformattedCoordinates = [[175, 70], [175, 60], [200, 60], [200, 70]];
+    // Create square centered on (x,y)
+    var unformattedCoordinates = [[x-2, y+2], [x-2, y-2], [x+2, y-2], [x+2, y+2]];
+    var convertedCoordinates = [];
+
+    // Convert square from long-lat to map coords
+    $(unformattedCoordinates).each(function(index, coordinate){
+        var xy = ol.proj.transform(coordinate, 'EPSG:4326', 'EPSG:3857');
+        convertedCoordinates.push(xy);
+    });
+
+    var polygonGeometry = new ol.geom.Polygon([convertedCoordinates]);
+    var polygonFeature = new ol.Feature({ geometry : polygonGeometry });
+
+    // TODO: if I can get source from existing layer, then I can add markers to it,
+    var vectorSource = new ol.source.Vector();
+    vectorSource.addFeature(polygonFeature);
+    marker_layer.setSource(vectorSource);
+}
+
 // GDN - TODO: tau_buttons should chain handler functions instead of using this pre-defined function name.
 // When user selects a tau button, this functio is called.
 // called by tau_buttons.tauSelect()
@@ -151,3 +194,34 @@ function tauSelectEx(theButton, tauVal) {
 }
 
 // Better mouse click example: http://miloq.blogspot.com/2011/05/coordinates-mouse-click-canvas.html
+
+// Create the map legend as a canvas object
+function create_legend(cntr_vals) {
+    // TODO: color values should be dynamically determined
+    // TODO: number of cntr_vals should be dynamic, not fixed at 3
+    var colors = ['maroon','seagreen','lightskyblue']; // declared in efsm_isis.py
+    var canvas = jQuery('<canvas />').attr({
+        id:'legend', width:'80', height:'80',
+        style:'border:2px solid #000000;'
+    });
+    //console.log('create_legend: '+JSON.stringify(cntr_vals));
+    //var ctx = $(canvas)[0].getContext('2d');
+    var ctx = canvas[0].getContext('2d');
+    ctx.font = "18px serif";
+    for (i = 0; i < cntr_vals.length; i++) {
+        my_value = cntr_vals[i];
+        my_color = colors[i % colors.length];
+        ctx.fillStyle = 'black';
+        ctx.fillText(""+my_value, 10, 20+(i*25));
+        ctx.fillStyle = my_color;
+        ctx.fillRect(40,10+(i*25), 30,10);
+    }
+
+    // TODO: should just return canvas and not place it on page,
+    // but this is easier for now.
+    var leg_div = jQuery('#legend_div');
+    // must clear contents
+    leg_div.empty();
+    // add new legend to div
+    leg_div.append(canvas);
+}
